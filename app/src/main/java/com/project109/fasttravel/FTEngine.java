@@ -1,8 +1,24 @@
 package com.project109.fasttravel;
 
-import com.google.android.gms.maps.model.LatLng;
+import android.graphics.Color;
+import android.os.AsyncTask;
+import android.util.Log;
 
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.PolylineOptions;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -11,7 +27,9 @@ import java.util.List;
 
 public class FTEngine {
 
-    public String MapsApiKey = "AIzaSyDoZCP6k279KJ-BY30zvZG3rIKJtfvf0bQ";
+    public String MapsApiKey = "AIzaSyB_W5sRXy3osGzbtN21qXlWcweVLR5mMvY";
+    private String distanceThr;
+    private String durationThr;
 
     public float GetTimeForPoints(List<LatLng> points, float speed)
     {
@@ -25,7 +43,11 @@ public class FTEngine {
 
     public float GetLenForRoute(LatLng src, LatLng dst)
     {
+        String url = GetRequestUrl(src, dst);
+        DownloadManager downloadMan = new DownloadManager();
+        downloadMan.execute(url);
         return 0.0f;
+        //return Float.parseFloat(distanceThr);
     }
 
 
@@ -35,22 +57,55 @@ public class FTEngine {
         String str_origin = "origin="+origin.latitude+","+origin.longitude;
         String str_dest = "destination="+dest.latitude+","+dest.longitude;
         String sensor = "sensor=false";
-        String parameters = str_origin+"&"+str_dest+"&"+sensor;
+        String mode = "mode=walking";
+        String parameters = str_origin+"&"+str_dest+"&"+sensor+"&"+mode;
         String output = "json";
         String url = "https://maps.googleapis.com/maps/api/directions/"+output+"?"+parameters+"&key="+MapsApiKey;
 
         return url;
     }
 
-    private List<LatLng> DecodePolyline(String encoded)
+    private String DownloadJsonFromUrl(String url)
     {
+        String jsonData = "";
+        InputStream iStream = null;
+        HttpURLConnection urlConnection = null;
+        try
+        {
+            URL urlObj = new URL(url);
+            urlConnection = (HttpURLConnection) urlObj.openConnection();
+            iStream = urlConnection.getInputStream();
+            BufferedReader br = new BufferedReader(new InputStreamReader(iStream));
+            String line = "";
+            StringBuffer sb = new StringBuffer();
+            while((line = br.readLine()) != null)
+            {
+                sb.append(line);
+            }
+            jsonData = sb.toString();
+            iStream.close();
+        }
+        catch(Exception ex)
+        {
+            Log.d("[DEBUG]", ex.getMessage());
+        }
+        finally
+        {
+            urlConnection.disconnect();
+        }
+        return jsonData;
+    }
+
+    private List<LatLng> DecodePolyline(String encoded) {
         List<LatLng> poly = new ArrayList<LatLng>();
         int index = 0, len = encoded.length();
         int lat = 0, lng = 0;
 
-        while (index < len) {
+        while (index < len)
+        {
             int b, shift = 0, result = 0;
-            do {
+            do
+            {
                 b = encoded.charAt(index++) - 63;
                 result |= (b & 0x1f) << shift;
                 shift += 5;
@@ -60,7 +115,8 @@ public class FTEngine {
 
             shift = 0;
             result = 0;
-            do {
+            do
+            {
                 b = encoded.charAt(index++) - 63;
                 result |= (b & 0x1f) << shift;
                 shift += 5;
@@ -68,10 +124,145 @@ public class FTEngine {
             int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
             lng += dlng;
 
-            LatLng p = new LatLng((((double) lat / 1E5)),
-                    (((double) lng / 1E5)));
+            LatLng p = new LatLng((((double) lat / 1E5)), (((double) lng / 1E5)));
             poly.add(p);
         }
         return poly;
+    }
+
+    private class DownloadManager extends AsyncTask<String, Void, String>
+    {
+        @Override
+        protected String doInBackground(String... url)
+        {
+            String jsonData = "";
+
+            try
+            {
+                jsonData = DownloadJsonFromUrl(url[0]);
+            }
+            catch (Exception ex)
+            {
+                Log.d("[DEBUG]", ex.getMessage());
+            }
+
+            return jsonData;
+        }
+
+        @Override
+        protected void onPostExecute(String s)
+        {
+            super.onPostExecute(s);
+
+            JsonDataParser parserTask = new JsonDataParser();
+            parserTask.execute(s);
+        }
+    }
+
+    private class JsonDataParser extends AsyncTask<String,  Integer, List<List<HashMap<String,String>>>>
+    {
+        @Override
+        protected List<List<HashMap<String,String>>> doInBackground(String... jsonData)
+        {
+            List<List<HashMap<String, String>>> routes = null;
+
+            try
+            {
+                JSONObject jObject = new JSONObject(jsonData[0]);
+                routes = new ArrayList<List<HashMap<String,String>>>() ;
+                JSONArray jRoutes = null;
+                JSONArray jLegs = null;
+                JSONArray jSteps = null;
+                JSONObject jDistance = null;
+                JSONObject jDuration = null;
+
+                try {
+                    jRoutes = jObject.getJSONArray("routes");
+                    for(int i=0;i<jRoutes.length();i++){
+                        jLegs = ( (JSONObject)jRoutes.get(i)).getJSONArray("legs");
+
+                        List<HashMap<String, String>> path = new ArrayList<HashMap<String, String>>();
+
+                        for(int j=0;j < jLegs.length();j++)
+                        {
+
+                            jDistance = ((JSONObject) jLegs.get(j)).getJSONObject("distance");
+                            HashMap<String, String> hmDistance = new HashMap<String, String>();
+                            hmDistance.put("distance", jDistance.getString("text"));
+
+                            jDuration = ((JSONObject) jLegs.get(j)).getJSONObject("duration");
+                            HashMap<String, String> hmDuration = new HashMap<String, String>();
+                            hmDuration.put("duration", jDuration.getString("text"));
+
+                            path.add(hmDistance);
+
+                            path.add(hmDuration);
+
+                            jSteps = ( (JSONObject)jLegs.get(j)).getJSONArray("steps");
+
+                            for(int k=0;k<jSteps.length();k++)
+                            {
+                                String polyline = "";
+                                polyline = (String)((JSONObject)((JSONObject)jSteps.get(k)).get("polyline")).get("points");
+                                List<LatLng> list = DecodePolyline(polyline);
+
+                                for(int l=0;l<list.size();l++)
+                                {
+                                    HashMap<String, String> hm = new HashMap<String, String>();
+                                    hm.put("lat", Double.toString(((LatLng)list.get(l)).latitude) );
+                                    hm.put("lng", Double.toString(((LatLng)list.get(l)).longitude) );
+                                    path.add(hm);
+                                }
+                            }
+                        }
+                        routes.add(path);
+                    }
+                }
+                catch (JSONException e)
+                {
+                    e.printStackTrace();
+                }
+            }
+            catch(JSONException ex)
+            {
+                ex.printStackTrace();
+            }
+            return routes;
+        }
+
+        @Override
+        protected void onPostExecute(List<List<HashMap<String, String>>> result) {
+            ArrayList<LatLng> points = null;
+            PolylineOptions lineOptions = null;
+            String distance = "";
+            String duration = "";
+
+            // Traversing through all the routes
+            for(int i=0;i<result.size();i++)
+            {
+                points = new ArrayList<LatLng>();
+                lineOptions = new PolylineOptions();
+
+                List<HashMap<String, String>> path = result.get(i);
+
+                for(int j=0;j<path.size();j++)
+                {
+                    HashMap<String,String> point = path.get(j);
+
+                    if(j==0)
+                    {
+                        distance = (String)point.get("distance");
+                        continue;
+                    }
+                    else if(j==1)
+                    {
+                        duration = (String)point.get("duration");
+                        continue;
+                    }
+                }
+            }
+            distanceThr = distance;
+            durationThr = duration;
+        }
     }
 }

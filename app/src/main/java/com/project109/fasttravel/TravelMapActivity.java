@@ -10,6 +10,9 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class TravelMapActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
@@ -38,15 +41,15 @@ public class TravelMapActivity extends FragmentActivity implements OnMapReadyCal
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
-        // Add a marker in Sydney and move the camera
-        LatLng sydney = new LatLng(-34, 151);
-        LatLng sydney1 = new LatLng(-34, 149);
-        LatLng sydney2 = new LatLng(-34, 147);
-        LatLng sydney3 = new LatLng(-34, 145);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        mMap.addMarker(new MarkerOptions().position(sydney1).title("Marker in Sydney1"));
-        mMap.addMarker(new MarkerOptions().position(sydney2).title("Marker in Sydney2"));
-        mMap.addMarker(new MarkerOptions().position(sydney3).title("Marker in Sydney3"));
+        LatLng sydney = new LatLng(50.41671, 30.56902);
+        LatLng sydney1 = new LatLng(50.44670, 30.52750);
+        FTEngine eng = new FTEngine();
+        List<LatLng> pointList = new ArrayList<LatLng>();
+        pointList.add(sydney);
+        pointList.add(sydney1);
+        float test = eng.GetTimeForPoints(pointList, 4.0f);
+        mMap.addMarker(new MarkerOptions().position(sydney).title("Test"));
+        mMap.addMarker(new MarkerOptions().position(sydney1).title("Test1"));
         mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
     }
 }
