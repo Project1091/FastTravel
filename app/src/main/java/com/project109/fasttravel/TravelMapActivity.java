@@ -2,6 +2,7 @@ package com.project109.fasttravel;
 
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.widget.TextView;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -40,16 +41,29 @@ public class TravelMapActivity extends FragmentActivity implements OnMapReadyCal
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        TextView textBox = (TextView) findViewById(R.id.durText);
 
         LatLng sydney = new LatLng(50.41671, 30.56902);
         LatLng sydney1 = new LatLng(50.44670, 30.52750);
-        FTEngine eng = new FTEngine();
+        LatLng sydney2 = new LatLng(50.41670, 30.56752);
+        LatLng sydney3 = new LatLng(50.42665, 30.53387);
+        LatLng sydney4 = new LatLng(50.44112, 30.51448);
+        LatLng sydney5 = new LatLng(50.44850, 30.58196);
+        FTEngine eng = new FTEngine(mMap, textBox);
         List<LatLng> pointList = new ArrayList<LatLng>();
         pointList.add(sydney);
         pointList.add(sydney1);
-        float test = eng.GetTimeForPoints(pointList, 4.0f);
+        pointList.add(sydney2);
+        pointList.add(sydney3);
+        pointList.add(sydney4);
+        pointList.add(sydney5);
+        eng.GetTimeForPoints(pointList, 4.0f);
         mMap.addMarker(new MarkerOptions().position(sydney).title("Test"));
         mMap.addMarker(new MarkerOptions().position(sydney1).title("Test1"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+        mMap.addMarker(new MarkerOptions().position(sydney2).title("Test2"));
+        mMap.addMarker(new MarkerOptions().position(sydney3).title("Test3"));
+        mMap.addMarker(new MarkerOptions().position(sydney4).title("Test4"));
+        mMap.addMarker(new MarkerOptions().position(sydney5).title("Test5"));
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(sydney, 13.0f));
     }
 }

@@ -3,13 +3,16 @@ package com.project109.fasttravel;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.util.Log;
+import android.widget.TextView;
 
+import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.PolylineOptions;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.w3c.dom.Text;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -28,26 +31,30 @@ import java.util.List;
 public class FTEngine {
 
     public String MapsApiKey = "AIzaSyB_W5sRXy3osGzbtN21qXlWcweVLR5mMvY";
-    private String distanceThr;
-    private String durationThr;
+    private float distanceThr = 0.0f;
+    private int durationThr = 0;
+    private GoogleMap mapObj;
+    private TextView textObj;
 
-    public float GetTimeForPoints(List<LatLng> points, float speed)
+    public FTEngine(GoogleMap map, TextView text)
     {
-        float totalLen = 0.0f;
-        for(int i = 0; i < points.size() - 1; i++)
-        {
-            totalLen += GetLenForRoute(points.get(i), points.get(i+1));
-        }
-        return totalLen/speed;
+        mapObj = map;
+        textObj = text;
     }
 
-    public float GetLenForRoute(LatLng src, LatLng dst)
+    public void GetTimeForPoints(List<LatLng> points, float speed)
+    {
+        for(int i = 0; i < points.size() - 1; i++)
+        {
+            GetLenForRoute(points.get(i), points.get(i+1));
+        }
+    }
+
+    public void GetLenForRoute(LatLng src, LatLng dst)
     {
         String url = GetRequestUrl(src, dst);
         DownloadManager downloadMan = new DownloadManager();
         downloadMan.execute(url);
-        return 0.0f;
-        //return Float.parseFloat(distanceThr);
     }
 
 
@@ -259,10 +266,39 @@ public class FTEngine {
                         duration = (String)point.get("duration");
                         continue;
                     }
+                    double lat = Double.parseDouble(point.get("lat"));
+                    double lng = Double.parseDouble(point.get("lng"));
+                    LatLng position = new LatLng(lat, lng);
+
+                    points.add(position);
                 }
+                lineOptions.addAll(points);
+                lineOptions.width(8);
+                lineOptions.color(Color.RED);
             }
-            distanceThr = distance;
-            durationThr = duration;
+            mapObj.addPolyline(lineOptions);
+            distanceThr = GetDistanceFromString(distance);
+            durationThr = GetTimeFromString(duration);
+            textObj.append("Distance: " + distanceThr + " km Time: " + durationThr + " min\n");
         }
+    }
+
+    private float GetDistanceFromString(String distance)
+    {
+        float distinKm = Float.parseFloat(distance.substring(0, distance.indexOf(" ")));
+        return distinKm;
+    }
+
+    private int GetTimeFromString(String time)
+    {
+        int hours = 0, minutes = 0;
+        int hindex = time.indexOf('h');
+        if(hindex != -1)
+        {
+            hours = Integer.parseInt(time.substring(0, hindex-1));
+        }
+        int mindex = time.indexOf('m');
+        minutes = Integer.parseInt(time.substring(mindex - 3, mindex-1));
+        return (hours*60)+minutes;
     }
 }
