@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">FastTravel</string>
+    <string name="title_activity_travel_map">FastTravelMap</string>
+</resources>
