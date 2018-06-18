@@ -1,11 +1,13 @@
 package com.project109.fasttravel;
 
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.os.AsyncTask;
 import android.util.Log;
 import android.widget.TextView;
 
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.PolylineOptions;
 
@@ -44,15 +46,20 @@ public class FTEngine {
         textObj = text;
     }
 
-    public void GetTimeForPoints(List<LatLng> points, int durTime)
+    public int GetTimeForPoints(List<LatLng> points, int durTime)
     {
         time = durTime;
+        int num = -1;
         for(int i = 0; i < points.size() - 1; i++)
         {
             GetLenForRoute(points.get(i), points.get(i+1));
-            if(cancelationToken)
+            //Log.d("[DEBUG]", "distanceThr = " + distanceThr);
+            if(cancelationToken){
+                num = i;
                 break;
+            }
         }
+        return num;
     }
 
     public void GetLenForRoute(LatLng src, LatLng dst)
@@ -282,19 +289,21 @@ public class FTEngine {
                 lineOptions.color(Color.RED);
             }
             int curTimeAdd = GetTimeFromString(duration);
-            if(durationThr < time) {
+            if(durationThr + curTimeAdd < time) {
                 distanceThr += GetDistanceFromString(distance);
                 durationThr += curTimeAdd;
                 mapObj.addPolyline(lineOptions);
                 textObj.setText("Distance: " + distanceThr + " m\nTime: " + durationThr + " min");
             }
+            else cancelationToken = true;
         }
     }
 
     private float GetDistanceFromString(String distance)
     {
         float distinKm = Float.parseFloat(distance.substring(0, distance.indexOf(" ")));
-        if(distance.substring(distance.indexOf(" "), distance.length() - 1) == "km")
+        String dist = distance.substring(distance.indexOf(" "), distance.length());
+        if(dist.equals(" km"))
             return distinKm * 1000;
         else return distinKm;
     }
@@ -310,10 +319,14 @@ public class FTEngine {
         int mindex = time.indexOf('m');
         if(mindex != -1 && mindex > 0)
         {
-            minutes = Integer.parseInt(time.substring(mindex - 2, mindex - 1));
+            String sanitize = time.substring(mindex - 2, mindex - 1);
+            sanitize = sanitize.replace(" ", "");
+            minutes = Integer.parseInt(sanitize);
         }
         if(mindex != -1 && mindex > 2) {
-            minutes = Integer.parseInt(time.substring(mindex - 3, mindex - 1));
+            String sanitize = time.substring(mindex - 3, mindex - 1);
+            sanitize = sanitize.replace(" ", "");
+            minutes = Integer.parseInt(sanitize);
         }
         return (hours*60)+minutes;
     }

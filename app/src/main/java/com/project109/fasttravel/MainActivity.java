@@ -18,6 +18,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.Spinner;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 
@@ -43,12 +44,18 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         tagArr.add(chk3.isChecked() ? 0 : 3);
         b.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                if(gpsLat != 0.0f) {
                     Intent intent = new Intent(MainActivity.this, TravelMapActivity.class);
                     intent.putExtra("gpsLat", gpsLat);
                     intent.putExtra("gpsLon", gpsLon);
                     intent.putExtra("time", Integer.parseInt(ed.getText().toString()));
                     intent.putExtra("tags", tagArr);
-                startActivity(intent);
+                    startActivity(intent);
+                }
+                else
+                {
+                    Toast.makeText(MainActivity.this, "Нет сигнала GPS! Проверьте подключение!", Toast.LENGTH_LONG).show();
+                }
             }
         });
         StartGps();

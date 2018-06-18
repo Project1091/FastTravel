@@ -1,0 +1,8 @@
+<resources>
+    <string-array name="spinnerItems1">
+        <item>Пешая прогулка</item>
+        <item>Велопрогулка</item>
+        <item>Общественный транспорт</item>
+        <item>Автомобиль</item>
+    </string-array>
+</resources>

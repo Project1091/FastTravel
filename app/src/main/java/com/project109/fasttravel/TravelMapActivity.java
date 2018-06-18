@@ -11,6 +11,8 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
@@ -50,6 +52,11 @@ public class TravelMapActivity extends FragmentActivity implements OnMapReadyCal
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
+        LatLng point = new LatLng(curGpsLat, curGpsLon);
+        BitmapDescriptor icon = BitmapDescriptorFactory.fromResource(R.drawable.star);
+        mMap.addMarker(new MarkerOptions().position(point).title("Стартовая точка").icon(icon));
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(point, 13.0f));
+
         GetLocationData();
     }
 
@@ -71,22 +78,33 @@ public class TravelMapActivity extends FragmentActivity implements OnMapReadyCal
             jsonData = '[' + jsonData + ']';
             jsonData = jsonData.replace("}{", "},{");
             JSONArray jObject = new JSONArray(jsonData);
+            routeList.add(FindNextClosestPoint(new LatLng(curGpsLat, curGpsLon), jObject));
             for(int j = 0; j < jObject.length(); j++)
             {
-                LatLng src = new LatLng(Float.parseFloat(((JSONObject) jObject.get(j)).getString("Latitude")), Float.parseFloat(((JSONObject) jObject.get(j)).getString("Longitude")));
+                LatLng src = new LatLng(Float.parseFloat(routeList.get(routeList.size()-1).getString("Latitude")), Float.parseFloat(routeList.get(routeList.size()-1).getString("Longitude")));
                 routeList.add(FindNextClosestPoint(src, jObject));
                 j--;
             }
+
+            pointList.add(new LatLng(curGpsLat, curGpsLon));
 
             for(int i = 0; i < routeList.size(); i++)
             {
                 LatLng point = new LatLng(Float.parseFloat(routeList.get(i).getString("Latitude")), Float.parseFloat(routeList.get(i).getString("Longitude")));
                 pointList.add(point);
-                mMap.addMarker(new MarkerOptions().position(point).title(routeList.get(i).getString("Name")));
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(point, 13.0f));
             }
 
-            eng.GetTimeForPoints(pointList, time);
+            int cutoff = eng.GetTimeForPoints(pointList, time);
+            //wait(5000);
+
+            if(cutoff == -1)
+                cutoff = pointList.size();
+
+            for(int i = 1; i < cutoff; i++)
+            {
+                mMap.addMarker(new MarkerOptions().position(pointList.get(i)).title("#" + i + " " + routeList.get(i-1).getString("Name")));
+            }
+
 
         }
         catch(Exception ex)
@@ -98,13 +116,15 @@ public class TravelMapActivity extends FragmentActivity implements OnMapReadyCal
 
     public JSONObject FindNextClosestPoint(LatLng src, JSONArray points)
     {
-        ArrayList<Float> distances = new ArrayList<Float>();
+        ArrayList<Double> distances = new ArrayList<Double>();
 
         try
         {
             for(int i = 0; i < points.length(); i++)
             {
-                float dist = (float)Math.sqrt(Math.pow((((JSONObject)points.get(i)).getDouble("Latitude") - src.latitude),2) + Math.pow((((JSONObject)points.get(i)).getDouble("Longitude") - src.longitude),2));
+                LatLng dst = new LatLng(((JSONObject)points.get(i)).getDouble("Latitude"), ((JSONObject)points.get(i)).getDouble("Longitude"));
+                double dist = getDistanceFromLatLonInKm(src, dst);
+
                 distances.add(dist);
             }
 
@@ -122,6 +142,21 @@ public class TravelMapActivity extends FragmentActivity implements OnMapReadyCal
         return null;
     }
 
+    private double getDistanceFromLatLonInKm(LatLng src, LatLng dst)
+    {
+        int R = 6371; // Radius of the earth in km
+        double dLat = deg2rad(dst.latitude-src.latitude);  // deg2rad below
+        double dLon = deg2rad(dst.longitude-src.longitude);
+        double a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(deg2rad(src.latitude)) * Math.cos(deg2rad(dst.latitude)) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        double d = R * c; // Distance in km
+        return d;
+    }
+
+    private double deg2rad(double deg) {
+        return deg * (Math.PI/180);
+    }
+
     private String GetRequestUrl()
     {
         StringBuffer tagParam = new StringBuffer();
@@ -132,7 +167,7 @@ public class TravelMapActivity extends FragmentActivity implements OnMapReadyCal
             if(i+1 < tags.size())
                 tagParam.append(',');
         }
-        String parameters = "&la=" + curGpsLat + "&lo=" + curGpsLon + "&ti=" + time;
+        String parameters = "&la=" + curGpsLat + "&lo=" + curGpsLon + "&ti=" + 2000;
         String url = "http://89.185.3.253:18080/poi.php?" + tagParam.toString() + parameters;
 
         return url;

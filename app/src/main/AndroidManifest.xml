@@ -16,14 +16,14 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".SplashScreen">
+        <activity android:name=".SplashScreen" android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".MainActivity">
+        <activity android:name=".MainActivity" android:screenOrientation="portrait">
         </activity>
         <!--
              The API key for Google Maps-based APIs is defined as a string resource.
@@ -39,7 +39,8 @@
 
         <activity
             android:name=".TravelMapActivity"
-            android:label="@string/title_activity_travel_map">
+            android:label="@string/title_activity_travel_map"
+            android:screenOrientation="portrait">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.project109.fasttravel.MainActivity" />
