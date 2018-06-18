@@ -1,7 +1,10 @@
 package com.project109.fasttravel;
 
+import android.content.Intent;
+import android.os.AsyncTask;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.TextView;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -11,59 +14,155 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 public class TravelMapActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
+    private float curGpsLat;
+    private float curGpsLon;
+    private ArrayList<Integer> tags;
+    private int time;
+    private TextView textBox;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_travel_map);
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        textBox = (TextView) findViewById(R.id.durText);
+        Intent intent = getIntent();
+        curGpsLat = intent.getFloatExtra("gpsLat", 0.0f);
+        curGpsLon = intent.getFloatExtra("gpsLon", 0.0f);
+        time = intent.getIntExtra("time", 0);
+        tags = intent.getIntegerArrayListExtra("tags");
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
     }
 
-
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        TextView textBox = (TextView) findViewById(R.id.durText);
 
-        LatLng sydney = new LatLng(50.41671, 30.56902);
-        LatLng sydney1 = new LatLng(50.44670, 30.52750);
-        LatLng sydney2 = new LatLng(50.41670, 30.56752);
-        LatLng sydney3 = new LatLng(50.42665, 30.53387);
-        LatLng sydney4 = new LatLng(50.44112, 30.51448);
-        LatLng sydney5 = new LatLng(50.44850, 30.58196);
+        GetLocationData();
+    }
+
+    public void GetLocationData()
+    {
+        String url = GetRequestUrl();
+        DownloadManager downloadMan = new DownloadManager();
+        downloadMan.execute(url);
+    }
+
+    public void BuildRouteFromJson(String jsonData)
+    {
+        ArrayList<JSONObject> routeList = new ArrayList<JSONObject>();
         FTEngine eng = new FTEngine(mMap, textBox);
         List<LatLng> pointList = new ArrayList<LatLng>();
-        pointList.add(sydney);
-        pointList.add(sydney1);
-        pointList.add(sydney2);
-        pointList.add(sydney3);
-        pointList.add(sydney4);
-        pointList.add(sydney5);
-        eng.GetTimeForPoints(pointList, 4.0f);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Test"));
-        mMap.addMarker(new MarkerOptions().position(sydney1).title("Test1"));
-        mMap.addMarker(new MarkerOptions().position(sydney2).title("Test2"));
-        mMap.addMarker(new MarkerOptions().position(sydney3).title("Test3"));
-        mMap.addMarker(new MarkerOptions().position(sydney4).title("Test4"));
-        mMap.addMarker(new MarkerOptions().position(sydney5).title("Test5"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(sydney, 13.0f));
+
+        try
+        {
+            jsonData = '[' + jsonData + ']';
+            jsonData = jsonData.replace("}{", "},{");
+            JSONArray jObject = new JSONArray(jsonData);
+            for(int j = 0; j < jObject.length(); j++)
+            {
+                LatLng src = new LatLng(Float.parseFloat(((JSONObject) jObject.get(j)).getString("Latitude")), Float.parseFloat(((JSONObject) jObject.get(j)).getString("Longitude")));
+                routeList.add(FindNextClosestPoint(src, jObject));
+                j--;
+            }
+
+            for(int i = 0; i < routeList.size(); i++)
+            {
+                LatLng point = new LatLng(Float.parseFloat(routeList.get(i).getString("Latitude")), Float.parseFloat(routeList.get(i).getString("Longitude")));
+                pointList.add(point);
+                mMap.addMarker(new MarkerOptions().position(point).title(routeList.get(i).getString("Name")));
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(point, 13.0f));
+            }
+
+            eng.GetTimeForPoints(pointList, time);
+
+        }
+        catch(Exception ex)
+        {
+            ex.printStackTrace();
+        }
+
+    }
+
+    public JSONObject FindNextClosestPoint(LatLng src, JSONArray points)
+    {
+        ArrayList<Float> distances = new ArrayList<Float>();
+
+        try
+        {
+            for(int i = 0; i < points.length(); i++)
+            {
+                float dist = (float)Math.sqrt(Math.pow((((JSONObject)points.get(i)).getDouble("Latitude") - src.latitude),2) + Math.pow((((JSONObject)points.get(i)).getDouble("Longitude") - src.longitude),2));
+                distances.add(dist);
+            }
+
+            int minIndex = distances.indexOf(Collections.min(distances));
+
+            JSONObject obj = (JSONObject)points.get(minIndex);
+            points.remove(minIndex);
+
+            return obj;
+        }
+        catch(Exception ex)
+        {
+            ex.printStackTrace();
+        }
+        return null;
+    }
+
+    private String GetRequestUrl()
+    {
+        StringBuffer tagParam = new StringBuffer();
+        tagParam.append("t=");
+        for(int i = 0; i < tags.size(); i++)
+        {
+            tagParam.append(tags.get(i));
+            if(i+1 < tags.size())
+                tagParam.append(',');
+        }
+        String parameters = "&la=" + curGpsLat + "&lo=" + curGpsLon + "&ti=" + time;
+        String url = "http://89.185.3.253:18080/poi.php?" + tagParam.toString() + parameters;
+
+        return url;
+    }
+
+    private class DownloadManager extends AsyncTask<String, Void, String>
+    {
+        @Override
+        protected String doInBackground(String... url)
+        {
+            String jsonData = "";
+
+            try
+            {
+                jsonData = FTEngine.DownloadJsonFromUrl(url[0]);
+            }
+            catch (Exception ex)
+            {
+                Log.d("[DEBUG]", ex.getMessage());
+            }
+
+            return jsonData;
+        }
+
+        @Override
+        protected void onPostExecute(String s)
+        {
+            super.onPostExecute(s);
+
+            BuildRouteFromJson(s);
+        }
     }
 }

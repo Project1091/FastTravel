@@ -15,6 +15,8 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.Spinner;
 
 import java.util.ArrayList;
@@ -29,11 +31,24 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        final EditText ed = (EditText)findViewById(R.id.editText);
+
         Button b = (Button)findViewById(R.id.button);
+        CheckBox chk1 = (CheckBox)findViewById(R.id.checkBox2);
+        CheckBox chk2 = (CheckBox)findViewById(R.id.checkBox3);
+        CheckBox chk3 = (CheckBox)findViewById(R.id.checkBox4);
+        final ArrayList<Integer> tagArr = new ArrayList<Integer>();
+        tagArr.add(chk1.isChecked() ? 0 : 1);
+        tagArr.add(chk2.isChecked() ? 0 : 2);
+        tagArr.add(chk3.isChecked() ? 0 : 3);
         b.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                     Intent intent = new Intent(MainActivity.this, TravelMapActivity.class);
-                    startActivity(intent);
+                    intent.putExtra("gpsLat", gpsLat);
+                    intent.putExtra("gpsLon", gpsLon);
+                    intent.putExtra("time", Integer.parseInt(ed.getText().toString()));
+                    intent.putExtra("tags", tagArr);
+                startActivity(intent);
             }
         });
         StartGps();
@@ -57,8 +72,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         }
 
         locationManager.requestLocationUpdates(locationProvider, 0, 0, this);
-
-        Location lastKnownLocation = locationManager.getLastKnownLocation(locationProvider);
     }
 
     @Override

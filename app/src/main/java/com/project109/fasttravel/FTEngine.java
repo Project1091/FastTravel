@@ -35,6 +35,8 @@ public class FTEngine {
     private int durationThr = 0;
     private GoogleMap mapObj;
     private TextView textObj;
+    private boolean cancelationToken = false;
+    private int time;
 
     public FTEngine(GoogleMap map, TextView text)
     {
@@ -42,11 +44,14 @@ public class FTEngine {
         textObj = text;
     }
 
-    public void GetTimeForPoints(List<LatLng> points, float speed)
+    public void GetTimeForPoints(List<LatLng> points, int durTime)
     {
+        time = durTime;
         for(int i = 0; i < points.size() - 1; i++)
         {
             GetLenForRoute(points.get(i), points.get(i+1));
+            if(cancelationToken)
+                break;
         }
     }
 
@@ -72,7 +77,7 @@ public class FTEngine {
         return url;
     }
 
-    private String DownloadJsonFromUrl(String url)
+    public static String DownloadJsonFromUrl(String url)
     {
         String jsonData = "";
         InputStream iStream = null;
@@ -276,17 +281,22 @@ public class FTEngine {
                 lineOptions.width(8);
                 lineOptions.color(Color.RED);
             }
-            mapObj.addPolyline(lineOptions);
-            distanceThr = GetDistanceFromString(distance);
-            durationThr = GetTimeFromString(duration);
-            textObj.append("Distance: " + distanceThr + " km Time: " + durationThr + " min\n");
+            int curTimeAdd = GetTimeFromString(duration);
+            if(durationThr < time) {
+                distanceThr += GetDistanceFromString(distance);
+                durationThr += curTimeAdd;
+                mapObj.addPolyline(lineOptions);
+                textObj.setText("Distance: " + distanceThr + " m\nTime: " + durationThr + " min");
+            }
         }
     }
 
     private float GetDistanceFromString(String distance)
     {
         float distinKm = Float.parseFloat(distance.substring(0, distance.indexOf(" ")));
-        return distinKm;
+        if(distance.substring(distance.indexOf(" "), distance.length() - 1) == "km")
+            return distinKm * 1000;
+        else return distinKm;
     }
 
     private int GetTimeFromString(String time)
@@ -298,7 +308,13 @@ public class FTEngine {
             hours = Integer.parseInt(time.substring(0, hindex-1));
         }
         int mindex = time.indexOf('m');
-        minutes = Integer.parseInt(time.substring(mindex - 3, mindex-1));
+        if(mindex != -1 && mindex > 0)
+        {
+            minutes = Integer.parseInt(time.substring(mindex - 2, mindex - 1));
+        }
+        if(mindex != -1 && mindex > 2) {
+            minutes = Integer.parseInt(time.substring(mindex - 3, mindex - 1));
+        }
         return (hours*60)+minutes;
     }
 }
